@@ -33,7 +33,7 @@ func RunInit() {
 
 🔧 Next steps:
   go mod tidy                                  # Install dependencies
-  go install github.com/swaggo/swag/cmd/swag@latest
+  go install github.com/swaggo/swag/cmd/swag@v1.8.12
                                               # Install Swagger binary
   gecho scaffold user                          # Generate model, route, query, migration
   gecho migrate                                # Apply database migrations
