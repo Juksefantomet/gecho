@@ -20,6 +20,7 @@ Available Commands:
   scaffold <name>      Generate model, route, query, and migration
   create-migration     Create blank SQL migration files
   migrate [down]       Apply or roll back migrations
+  version			   Print the current Gecho version
 
 Use "gecho [command] --help" for more information about a command.
 
