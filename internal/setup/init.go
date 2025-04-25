@@ -14,6 +14,7 @@ var requiredDirs = []string{
 }
 
 func RunInit() {
+	ensureGoModExists()
 	for _, dir := range requiredDirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			fmt.Printf("✗ Failed to create %s: %v\n", dir, err)
@@ -48,6 +49,29 @@ func RunInit() {
 
 }
 
+
+func ensureGoModExists() {
+	const path = "go.mod"
+	if _, err := os.Stat(path); err == nil {
+		return
+	}
+
+	fmt.Print("No go.mod found. Enter module name: ")
+	var name string
+	_, err := fmt.Scanln(&name)
+	if err != nil || strings.TrimSpace(name) == "" {
+		fmt.Println("✗ Invalid module name.")
+		os.Exit(1)
+	}
+
+	content := fmt.Sprintf("module %s\n\ngo 1.20\n", strings.TrimSpace(name))
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		fmt.Printf("✗ Failed to write go.mod: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("✓ go.mod created.")
+}
 
 
 func writeDotEnvIfMissing() {
