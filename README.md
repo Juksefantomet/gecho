@@ -23,6 +23,12 @@ Install the CLI globally with:
 go install github.com/Juksefantomet/gecho@latest
 ```
 
+Install tag specific version:
+
+```bash
+go install github.com/Juksefantomet/gecho@v0.1.3
+```
+
 ---
 
 ## 🚀 Commands
@@ -88,10 +94,14 @@ Run this to get everything working: (first time users of swagger must install th
 
 ```bash
 go mod tidy
-go install github.com/swaggo/swag/cmd/swag@latest
+go install github.com/swaggo/swag/cmd/swag@v1.16.4
 swag init
 go run main.go
 ```
+
+NOTE:
+Installing swag@latest can cause issue when running go run main.go - lock in on version
+
 
 Then visit:
 
