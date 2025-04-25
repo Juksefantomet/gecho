@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"os"
+	"runtime/debug"
 
 	"github.com/spf13/cobra"
 )
@@ -11,12 +11,12 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the current Gecho version",
 	Run: func(cmd *cobra.Command, args []string) {
-		data, err := os.ReadFile("VERSION")
-		if err != nil {
-			fmt.Println("✗ VERSION file not found")
-			os.Exit(1)
+		info, ok := debug.ReadBuildInfo()
+		if !ok || info.Main.Version == "" {
+			fmt.Println("Gecho (unknown version)")
+			return
 		}
-		fmt.Printf("Gecho v%s\n", string(data))
+		fmt.Printf("Gecho %s\n", info.Main.Version)
 	},
 }
 
