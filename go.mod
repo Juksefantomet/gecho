@@ -1,4 +1,4 @@
-module gecho
+module github.com/Juksefantomet/gecho
 
 go 1.24.0
 

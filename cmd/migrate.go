@@ -7,7 +7,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 
-	"gecho/internal/tool/services/database"
+	"github.com/Juksefantomet/gecho/internal/tool/services/database"
 )
 
 var migrateCmd = &cobra.Command{

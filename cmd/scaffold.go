@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"gecho/internal/scaffold"
+	"github.com/Juksefantomet/gecho/internal/scaffold"
 )
 
 var scaffoldCmd = &cobra.Command{

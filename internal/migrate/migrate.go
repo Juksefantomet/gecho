@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/joho/godotenv"
-	"gecho/internal/tool/services/database"
+	"github.com/Juksefantomet/gecho/internal/tool/services/database"
 )
 
 func Run(action string) error {

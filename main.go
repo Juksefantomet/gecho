@@ -1,6 +1,6 @@
 package main
 
-import "gecho/cmd"
+import "github.com/Juksefantomet/gecho/cmd"
 
 func main() {
 	cmd.Execute()

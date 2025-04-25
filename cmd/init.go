@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"gecho/internal/setup"
+	"github.com/Juksefantomet/gecho/internal/setup"
 )
 
 var initCmd = &cobra.Command{
