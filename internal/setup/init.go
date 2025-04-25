@@ -119,12 +119,13 @@ func init() {
 	}
 }
 
-// RequestTimeLogger logs how long each request takes
+// RequestTimeLogger middleware
 func RequestTimeLogger(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		start := time.Now()
 		err := next(c)
-		log.Printf("Request %s %s took %v", c.Request().Method, c.Request().URL.Path, time.Since(start))
+		duration := time.Since(start)
+		log.Printf("Request %s %s took %v", c.Request().Method, c.Request().URL.Path, duration)
 		return err
 	}
 }
