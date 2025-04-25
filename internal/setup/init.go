@@ -26,6 +26,26 @@ func RunInit() {
 	writeMainGoIfMissing(getModuleName("go.mod"))
 	writeDatabaseGoIfMissing()
 	writeHelloWorldRouteIfMissing(getModuleName("go.mod"))
+
+	fmt.Println(`
+📦 Project ready!
+
+🔧 Next steps:
+  go mod tidy                                  # Install dependencies
+  go install github.com/swaggo/swag/cmd/swag@latest
+                                              # Install Swagger binary
+  gecho scaffold user                          # Generate model, route, query, migration
+  gecho migrate                                # Apply database migrations
+  swag init                                    # Generate Swagger docs
+  go run main.go                               # Start the server
+
+⚙️  Optional:
+  go get -u ./...                              # Upgrade all packages
+
+🌐 Swagger UI:
+  http://localhost:3000/swagger/index.html
+`)
+
 }
 
 

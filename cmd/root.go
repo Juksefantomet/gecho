@@ -22,6 +22,8 @@ Available Commands:
   migrate [down]       Apply or roll back migrations
 
 Use "gecho [command] --help" for more information about a command.
+
+Note: Generating scaffolds does not enable route in main.go.
 `)
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(scaffoldCmd)
