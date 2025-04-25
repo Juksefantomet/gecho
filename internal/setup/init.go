@@ -156,7 +156,7 @@ func main() {
 	fmt.Println("Server running on port 3000")
 	e.Logger.Fatal(e.Start(":3000"))
 }
-`, module, module, module, module)
+`, module, module, module)
 
 	err := os.WriteFile(path, []byte(content), 0644)
 	if err != nil {
