@@ -136,3 +136,8 @@ https://github.com/Juksefantomet/gecho/releases/new?tag=v0.1.0
 Gecho was built with speed, repetition, and scale in mind.
 
 ---
+
+
+## License
+
+Licensed under the [MIT License](LICENSE).
