@@ -47,7 +47,7 @@ func init() {
 func printAutoMigrateHelp() {
 	fmt.Printf("%s\n", `Usage:
   gecho automigrate            # Show these setup instructions
-  gecho automigrate generate   # Create ` + setup.MigrationsGoPath + ` if missing
+  gecho automigrate generate   # Create `+setup.MigrationsGoPath+` if missing
 
 AutoMigrate applies pending db/migrations/*.up.sql when the app starts.
 It records them in the same migrations table as "gecho migrate", so both can be used.
@@ -56,5 +56,5 @@ Setup:
   1. Run: gecho automigrate generate
   2. In main.go, right after the existing database.InitDB(), add:
 
-` + autoMigrateMainSnippet)
+`+autoMigrateMainSnippet)
 }

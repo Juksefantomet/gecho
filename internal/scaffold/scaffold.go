@@ -2,6 +2,7 @@ package scaffold
 
 import (
 	"fmt"
+	"go/format"
 	"os"
 	"strings"
 	"time"
@@ -138,7 +139,13 @@ func toSnakeCase(s string) string {
 }
 
 func writeFile(path string, content string) error {
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	data := []byte(content)
+	if strings.HasSuffix(path, ".go") {
+		if out, err := format.Source(data); err == nil {
+			data = out
+		}
+	}
+	if err := os.WriteFile(path, data, 0644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
 	return nil
@@ -194,6 +201,7 @@ func routeBoilerplate(structName, pluralStruct, tableName, moduleName string) st
 
 import (
 	"net/http"
+
 	"%[4]s/app/models"
 	"%[4]s/app/services/database"
 

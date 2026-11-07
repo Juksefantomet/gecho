@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/Juksefantomet/gecho/internal/scaffold"
+	"github.com/spf13/cobra"
 )
 
 var scaffoldCmd = &cobra.Command{

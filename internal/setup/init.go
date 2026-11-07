@@ -2,6 +2,7 @@ package setup
 
 import (
 	"fmt"
+	"go/format"
 	"os"
 	"os/exec"
 	"strings"
@@ -52,7 +53,6 @@ Swagger UI:
 
 }
 
-
 func ensureGoModExists() {
 	const path = "go.mod"
 	if _, err := os.Stat(path); err == nil {
@@ -77,7 +77,6 @@ func ensureGoModExists() {
 
 	fmt.Println("go.mod created.")
 }
-
 
 func writeDotEnvIfMissing() {
 	const path = ".env"
@@ -117,8 +116,6 @@ func getModuleName(path string) string {
 	os.Exit(1)
 	return ""
 }
-
-
 
 func writeMainGoIfMissing(module string) {
 	const path = "main.go"
@@ -212,7 +209,7 @@ func main() {
 }
 `, module, module, module)
 
-	err := os.WriteFile(path, []byte(content), 0644)
+	err := os.WriteFile(path, formatGo(content), 0644)
 	if err != nil {
 		fmt.Printf("Failed to write main.go: %v\n", err)
 		os.Exit(1)
@@ -281,7 +278,7 @@ func GetPGVersion() string {
 }
 `
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, formatGo(content), 0644); err != nil {
 		fmt.Printf("Failed to write %s: %v\n", path, err)
 		os.Exit(1)
 	}
@@ -365,7 +362,7 @@ func AutoMigrate() error {
 }
 `
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(path, formatGo(content), 0644); err != nil {
 		fmt.Printf("Failed to write %s: %v\n", path, err)
 		os.Exit(1)
 	}
@@ -391,11 +388,19 @@ func HelloWorld(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"message": "Hello from Gecho"})
 }
 `
-	err := os.WriteFile(path, []byte(content), 0644)
+	err := os.WriteFile(path, formatGo(content), 0644)
 	if err != nil {
 		fmt.Printf("Failed to write %s: %v\n", path, err)
 		os.Exit(1)
 	}
 
 	fmt.Println("app/routes/helloWorld.go created.")
+}
+
+// formatGo gofmt-formats generated Go source, falling back to the raw text if it doesn't parse.
+func formatGo(content string) []byte {
+	if out, err := format.Source([]byte(content)); err == nil {
+		return out
+	}
+	return []byte(content)
 }

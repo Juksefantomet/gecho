@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/joho/godotenv"
 	"github.com/Juksefantomet/gecho/internal/tool/services/database"
+	"github.com/joho/godotenv"
 )
 
 func Run(action string) error {

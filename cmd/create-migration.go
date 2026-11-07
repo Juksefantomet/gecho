@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/Juksefantomet/gecho/internal/migrate"
+	"github.com/spf13/cobra"
 )
 
 var createMigrationCmd = &cobra.Command{
