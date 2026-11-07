@@ -14,6 +14,10 @@ func Create(name string) error {
 	timestamp := time.Now().Format("20060102150405")
 	migrationDir := "db/migrations"
 
+	if existing, ok := FindExisting(migrationDir, name); ok {
+		return fmt.Errorf("another migration is already named %s: %s", name, existing)
+	}
+
 	upFile := fmt.Sprintf("%s/%s_%s.up.sql", migrationDir, timestamp, name)
 	downFile := fmt.Sprintf("%s/%s_%s.down.sql", migrationDir, timestamp, name)
 

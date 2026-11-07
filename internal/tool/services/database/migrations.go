@@ -26,7 +26,9 @@ func RunMigrations(db *gorm.DB) {
 	}
 
 	var applied []Migration
-	db.Find(&applied)
+	if err := db.Find(&applied).Error; err != nil {
+		log.Fatalf("Failed to read applied migrations: %v", err)
+	}
 
 	appliedMap := make(map[string]bool)
 	for _, m := range applied {
@@ -54,7 +56,9 @@ func RunMigrations(db *gorm.DB) {
 			log.Fatalf("Migration %s failed: %v", name, err)
 		}
 
-		db.Create(&Migration{Name: name, AppliedAt: time.Now()})
+		if err := db.Create(&Migration{Name: name, AppliedAt: time.Now()}).Error; err != nil {
+			log.Fatalf("Migration %s ran but could not be recorded: %v", name, err)
+		}
 	}
 
 	log.Println("All migrations applied.")
@@ -83,7 +87,9 @@ func RollbackLastMigration(db *gorm.DB) {
 		log.Fatalf("Rollback failed for %s: %v", downFile, err)
 	}
 
-	db.Delete(&last)
+	if err := db.Delete(&last).Error; err != nil {
+		log.Fatalf("Rolled back %s but could not remove its record: %v", last.Name, err)
+	}
 	log.Printf("Rollback complete for %s.", last.Name)
 }
 

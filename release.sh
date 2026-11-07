@@ -5,13 +5,13 @@ VERSION=$(cat VERSION)
 TAG="v$VERSION"
 
 if [[ -z "$VERSION" ]]; then
-  echo "✗ VERSION file is empty"
+  echo "VERSION file is empty"
   exit 1
 fi
 
 # Check for clean working directory
 if [[ -n $(git status --porcelain) ]]; then
-  echo "✗ Working directory is not clean. Commit or stash changes first."
+  echo "Working directory is not clean. Commit or stash changes first."
   exit 1
 fi
 
@@ -32,6 +32,6 @@ git tag "$TAG"
 git push origin "$TAG"
 
 echo
-echo "✓ Tagged and pushed: $TAG"
-echo "→ Create GitHub release here:"
+echo "Tagged and pushed: $TAG"
+echo "Create GitHub release here:"
 echo "  https://github.com/Juksefantomet/gecho/releases/new?tag=$TAG"

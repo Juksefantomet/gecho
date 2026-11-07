@@ -16,7 +16,7 @@ var scaffoldCmd = &cobra.Command{
 		name := args[0]
 		err := scaffold.Run(name)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "✗ Scaffold failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Scaffold failed: %v\n", err)
 			os.Exit(1)
 		}
 	},

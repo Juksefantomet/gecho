@@ -1,9 +1,9 @@
 package database
 
 import (
-	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -11,19 +11,25 @@ import (
 
 var db *gorm.DB
 
-// InitDB reads env vars and initializes the GORM DB connection
+// InitDB reads env vars and initializes the GORM DB connection.
+// Empty vars are left out so the driver falls back to its defaults.
 func InitDB() {
 	var err error
 
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		os.Getenv("DATABASE_HOST"),
-		os.Getenv("DATABASE_USER"),
-		os.Getenv("DATABASE_PASSWORD"),
-		os.Getenv("DATABASE_NAME"),
-		os.Getenv("DATABASE_PORT"),
-	)
+	parts := []string{"sslmode=disable"}
+	for key, env := range map[string]string{
+		"host":     "DATABASE_HOST",
+		"user":     "DATABASE_USER",
+		"password": "DATABASE_PASSWORD",
+		"dbname":   "DATABASE_NAME",
+		"port":     "DATABASE_PORT",
+	} {
+		if v := os.Getenv(env); v != "" {
+			parts = append(parts, key+"="+v)
+		}
+	}
 
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err = gorm.Open(postgres.Open(strings.Join(parts, " ")), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}

@@ -15,29 +15,36 @@ var migrateCmd = &cobra.Command{
 	Short: "Run or rollback database migrations",
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		action := ""
+		if len(args) == 1 {
+			action = args[0]
+		}
+
+		switch action {
+		case "", "down":
+		case "help":
+			printMigrateHelp()
+			return
+		default:
+			printMigrateHelp()
+			fmt.Fprintf(os.Stderr, "\nUnknown argument: %s\n", action)
+			os.Exit(1)
+		}
+
 		_ = godotenv.Load(".env")
 		database.InitDB()
 		db := database.GetDB()
 
-		if len(args) == 0 {
-			fmt.Println("Running migrations...")
-			database.RunMigrations(db)
-			fmt.Println("Migrations complete.")
-			return
-		}
-
-		switch args[0] {
-		case "down":
+		if action == "down" {
 			fmt.Println("Rolling back last migration...")
 			database.RollbackLastMigration(db)
 			fmt.Println("Rollback complete.")
-		case "help":
-			printMigrateHelp()
-		default:
-			printMigrateHelp()
-			fmt.Fprintf(os.Stderr, "\n✗ Unknown argument: %s\n", args[0])
-			os.Exit(1)
+			return
 		}
+
+		fmt.Println("Running migrations...")
+		database.RunMigrations(db)
+		fmt.Println("Migrations complete.")
 	},
 }
 
@@ -50,4 +57,5 @@ func printMigrateHelp() {
 	fmt.Println("  gecho migrate         # Apply all pending migrations")
 	fmt.Println("  gecho migrate down    # Roll back the last migration")
 	fmt.Println("  gecho migrate help    # Show this help message")
+	fmt.Println("  gecho automigrate     # Run migrations on app start instead (setup instructions)")
 }

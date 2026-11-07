@@ -15,7 +15,7 @@ var createMigrationCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 		if err := migrate.Create(name); err != nil {
-			fmt.Fprintf(os.Stderr, "✗ Migration creation failed: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Migration creation failed: %v\n", err)
 			os.Exit(1)
 		}
 	},

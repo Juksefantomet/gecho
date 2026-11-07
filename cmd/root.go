@@ -20,16 +20,13 @@ Available Commands:
   scaffold <name>      Generate model, route, query, and migration
   create-migration     Create blank SQL migration files
   migrate [down]       Apply or roll back migrations
-  version			   Print the current Gecho version
+  automigrate          Run migrations on app start (setup instructions)
+  version              Print the current Gecho version
 
 Use "gecho [command] --help" for more information about a command.
 
 Note: Generating scaffolds does not enable route in main.go.
 `)
-	rootCmd.AddCommand(initCmd)
-	rootCmd.AddCommand(scaffoldCmd)
-	rootCmd.AddCommand(createMigrationCmd)
-	rootCmd.AddCommand(migrateCmd)
 }
 
 func Execute() {

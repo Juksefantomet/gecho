@@ -3,6 +3,7 @@ package setup
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -17,35 +18,37 @@ func RunInit() {
 	ensureGoModExists()
 	for _, dir := range requiredDirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			fmt.Printf("✗ Failed to create %s: %v\n", dir, err)
+			fmt.Printf("Failed to create %s: %v\n", dir, err)
 			os.Exit(1)
 		}
 	}
-	fmt.Println("✓ Gecho-compatible project structure initialized.")
-	fmt.Println("→ Ready for scaffolding.")
 	writeDotEnvIfMissing()
 	writeMainGoIfMissing(getModuleName("go.mod"))
 	writeDatabaseGoIfMissing()
-	writeHelloWorldRouteIfMissing(getModuleName("go.mod"))
+	if WriteMigrationsGoIfMissing() {
+		fmt.Println(MigrationsGoPath + " created.")
+	}
+	writeHelloWorldRouteIfMissing()
+	fmt.Println("Gecho-compatible project structure initialized.")
+	fmt.Println("Ready for scaffolding.")
 
 	fmt.Println(`
-📦 Project ready!
+Project ready!
 
-🔧 Next steps:
-  go mod tidy                                  # Install dependencies
+Next steps:
   go install github.com/swaggo/swag/cmd/swag@v1.16.4
                                               # Install Swagger binary
   gecho scaffold user                          # Generate model, route, query, migration
   gecho migrate                                # Apply database migrations
-  swag init                                    # Generate Swagger docs
+  swag init                                    # Generate Swagger docs (before go mod tidy)
+  go mod tidy                                  # Install dependencies
   go run main.go                               # Start the server
 
-⚙️  Optional:
+Optional:
   go get -u ./...                              # Upgrade all packages
 
-🌐 Swagger UI:
-  http://localhost:3000/swagger/index.html
-`)
+Swagger UI:
+  http://localhost:3000/swagger/index.html`)
 
 }
 
@@ -60,17 +63,19 @@ func ensureGoModExists() {
 	var name string
 	_, err := fmt.Scanln(&name)
 	if err != nil || strings.TrimSpace(name) == "" {
-		fmt.Println("✗ Invalid module name.")
+		fmt.Println("Invalid module name.")
 		os.Exit(1)
 	}
 
-	content := fmt.Sprintf("module %s\n\ngo 1.20\n", strings.TrimSpace(name))
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		fmt.Printf("✗ Failed to write go.mod: %v\n", err)
+	cmd := exec.Command("go", "mod", "init", strings.TrimSpace(name))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("Failed to create go.mod: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Println("✓ go.mod created.")
+	fmt.Println("go.mod created.")
 }
 
 
@@ -86,17 +91,17 @@ DATABASE_PORT=5432
 `
 		err := os.WriteFile(path, []byte(content), 0644)
 		if err != nil {
-			fmt.Printf("✗ Failed to write .env: %v\n", err)
+			fmt.Printf("Failed to write .env: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Println("✓ .env file created with default values.")
+		fmt.Println(".env file created with default values.")
 	}
 }
 
 func getModuleName(path string) string {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Printf("✗ Failed to read %s: %v\n", path, err)
+		fmt.Printf("Failed to read %s: %v\n", path, err)
 		os.Exit(1)
 	}
 
@@ -108,7 +113,7 @@ func getModuleName(path string) string {
 		}
 	}
 
-	fmt.Println("✗ No module declaration found in go.mod")
+	fmt.Println("No module declaration found in go.mod")
 	os.Exit(1)
 	return ""
 }
@@ -181,6 +186,11 @@ func main() {
 
 	database.InitDB()
 
+	// Apply pending db/migrations on start:
+	// if err := database.AutoMigrate(); err != nil {
+	// 	log.Fatalf("Auto-migrate failed: %%v", err)
+	// }
+
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
 		AllowMethods: []string{echo.GET, echo.POST},
@@ -204,11 +214,11 @@ func main() {
 
 	err := os.WriteFile(path, []byte(content), 0644)
 	if err != nil {
-		fmt.Printf("✗ Failed to write main.go: %v\n", err)
+		fmt.Printf("Failed to write main.go: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Println("✓ main.go created with Echo setup.")
+	fmt.Println("main.go created with Echo setup.")
 }
 
 func writeDatabaseGoIfMissing() {
@@ -220,9 +230,9 @@ func writeDatabaseGoIfMissing() {
 	content := `package database
 
 import (
-	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -230,19 +240,25 @@ import (
 
 var db *gorm.DB
 
-// InitDB initializes a PostgreSQL connection using env vars
+// InitDB initializes a PostgreSQL connection using env vars.
+// Empty vars are left out so the driver falls back to its defaults.
 func InitDB() {
 	var err error
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
-		os.Getenv("DATABASE_HOST"),
-		os.Getenv("DATABASE_USER"),
-		os.Getenv("DATABASE_PASSWORD"),
-		os.Getenv("DATABASE_NAME"),
-		os.Getenv("DATABASE_PORT"),
-	)
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	parts := []string{"sslmode=disable"}
+	for key, env := range map[string]string{
+		"host":     "DATABASE_HOST",
+		"user":     "DATABASE_USER",
+		"password": "DATABASE_PASSWORD",
+		"dbname":   "DATABASE_NAME",
+		"port":     "DATABASE_PORT",
+	} {
+		if v := os.Getenv(env); v != "" {
+			parts = append(parts, key+"="+v)
+		}
+	}
+	db, err = gorm.Open(postgres.Open(strings.Join(parts, " ")), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %%v", err)
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 }
 
@@ -266,20 +282,103 @@ func GetPGVersion() string {
 `
 
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		fmt.Printf("✗ Failed to write %s: %v\n", path, err)
+		fmt.Printf("Failed to write %s: %v\n", path, err)
 		os.Exit(1)
 	}
 
-	fmt.Println("✓ app/services/database/database.go created.")
+	fmt.Println("app/services/database/database.go created.")
 }
 
-func writeHelloWorldRouteIfMissing(module string) {
+const MigrationsGoPath = "app/services/database/migrations.go"
+
+// WriteMigrationsGoIfMissing writes the AutoMigrate runner and reports whether it was created.
+func WriteMigrationsGoIfMissing() bool {
+	path := MigrationsGoPath
+	if _, err := os.Stat(path); err == nil {
+		return false
+	}
+	if err := os.MkdirAll("app/services/database", 0755); err != nil {
+		fmt.Printf("Failed to create app/services/database: %v\n", err)
+		os.Exit(1)
+	}
+
+	content := `package database
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"time"
+)
+
+// migration is a row in the migrations table, shared with "gecho migrate".
+type migration struct {
+	ID        uint   ` + "`gorm:\"primaryKey\"`" + `
+	Name      string ` + "`gorm:\"unique\"`" + `
+	AppliedAt time.Time
+}
+
+// AutoMigrate applies all pending .up.sql files from db/migrations.
+func AutoMigrate() error {
+	db := GetDB()
+
+	if err := db.AutoMigrate(&migration{}); err != nil {
+		return fmt.Errorf("create migrations table: %w", err)
+	}
+
+	var applied []migration
+	if err := db.Find(&applied).Error; err != nil {
+		return fmt.Errorf("read applied migrations: %w", err)
+	}
+	done := make(map[string]bool)
+	for _, m := range applied {
+		done[m.Name] = true
+	}
+
+	files, err := filepath.Glob(filepath.Join("db/migrations", "*.up.sql"))
+	if err != nil {
+		return fmt.Errorf("list migration files: %w", err)
+	}
+
+	for _, file := range files {
+		name := filepath.Base(file)
+		if done[name] {
+			continue
+		}
+
+		sql, err := os.ReadFile(file)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", file, err)
+		}
+
+		log.Printf("Applying migration: %s", name)
+		if err := db.Exec(string(sql)).Error; err != nil {
+			return fmt.Errorf("migration %s: %w", name, err)
+		}
+		if err := db.Create(&migration{Name: name, AppliedAt: time.Now()}).Error; err != nil {
+			return fmt.Errorf("migration %s ran but could not be recorded: %w", name, err)
+		}
+	}
+
+	return nil
+}
+`
+
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		fmt.Printf("Failed to write %s: %v\n", path, err)
+		os.Exit(1)
+	}
+	return true
+}
+
+func writeHelloWorldRouteIfMissing() {
 	const path = "app/routes/helloWorld.go"
 	if _, err := os.Stat(path); err == nil {
 		return
 	}
 
-	content := fmt.Sprintf(`package routes
+	content := `package routes
 
 import (
 	"net/http"
@@ -291,12 +390,12 @@ import (
 func HelloWorld(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"message": "Hello from Gecho"})
 }
-`)
+`
 	err := os.WriteFile(path, []byte(content), 0644)
 	if err != nil {
-		fmt.Printf("✗ Failed to write %s: %v\n", path, err)
+		fmt.Printf("Failed to write %s: %v\n", path, err)
 		os.Exit(1)
 	}
 
-	fmt.Println("✓ app/routes/helloWorld.go created.")
+	fmt.Println("app/routes/helloWorld.go created.")
 }

@@ -2,43 +2,59 @@ package scaffold
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
+	"unicode"
+
+	"github.com/Juksefantomet/gecho/internal/migrate"
+	"github.com/jinzhu/inflection"
 )
 
 func Run(rawName string) error {
-	moduleName := getModuleName("go.mod")
-	if rawName == "" {
+	moduleName, err := getModuleName("go.mod")
+	if err != nil {
+		return err
+	}
+
+	input := toSnakeCase(strings.ReplaceAll(strings.TrimSpace(rawName), " ", "_"))
+	if input == "" {
 		return fmt.Errorf("missing model name")
 	}
 
+	singularName := inflection.Singular(input)
+	tableName := inflection.Plural(singularName)
+	if singularName != input {
+		fmt.Printf("Plural version of the model detected, using singularized version: %s\n", singularName)
+	}
+
+	structName := toPascalCase(singularName)
+	pluralStruct := toPascalCase(tableName)
+
 	timestamp := time.Now().Format("20060102150405")
 	migrationDir := "db/migrations"
+
+	if existing, ok := migrate.FindExisting(migrationDir, input, singularName, tableName); ok {
+		return fmt.Errorf("a migration for %s already exists: %s", tableName, existing)
+	}
 	modelsDir := "app/models"
 	routesDir := "app/routes"
 	queriesDir := "app/services/database"
 
-	snakeName := strings.ToLower(strings.ReplaceAll(rawName, " ", "_"))
-	structName := toPascalCase(singular(snakeName))
-	pluralName := plural(snakeName)
-	lowerCamel := toLowerCamelCase(structName)
+	upFile := fmt.Sprintf("%s/%s_%s.up.sql", migrationDir, timestamp, input)
+	downFile := fmt.Sprintf("%s/%s_%s.down.sql", migrationDir, timestamp, input)
 
-	upFile := fmt.Sprintf("%s/%s_%s.up.sql", migrationDir, timestamp, snakeName)
-	downFile := fmt.Sprintf("%s/%s_%s.down.sql", migrationDir, timestamp, snakeName)
-
-	modelFile := fmt.Sprintf("%s/%s.go", modelsDir, lowerCamel)
-	routeFile := fmt.Sprintf("%s/%ss.go", routesDir, lowerCamel)
-	queriesFile := fmt.Sprintf("%s/%sQueries.go", queriesDir, lowerCamel)
+	modelFile := fmt.Sprintf("%s/%s.go", modelsDir, toLowerCamelCase(structName))
+	routeFile := fmt.Sprintf("%s/%s.go", routesDir, toLowerCamelCase(pluralStruct))
+	queriesFile := fmt.Sprintf("%s/%sQueries.go", queriesDir, toLowerCamelCase(structName))
 
 	for _, dir := range []string{migrationDir, modelsDir, routesDir, queriesDir} {
 		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
-			log.Fatalf("Failed to create %s: %v", dir, err)
+			return fmt.Errorf("failed to create %s: %w", dir, err)
 		}
 	}
 
-	writeFile(upFile, fmt.Sprintf(`-- SQL UP Migration
+	if err := writeFile(upFile, fmt.Sprintf(`-- SQL UP Migration
 
 CREATE TABLE %s
 (
@@ -47,37 +63,44 @@ CREATE TABLE %s
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-`, pluralName))
-	writeFile(downFile, fmt.Sprintf(`-- SQL DOWN Migration
+`, tableName)); err != nil {
+		return err
+	}
+	if err := writeFile(downFile, fmt.Sprintf(`-- SQL DOWN Migration
 
 DROP TABLE IF EXISTS %s;
-`, pluralName))
+`, tableName)); err != nil {
+		return err
+	}
 
-	writeFileIfNotExists(modelFile, modelBoilerplate(structName))
-	writeFileIfNotExists(routeFile, routeBoilerplate(structName, moduleName))
-	writeFileIfNotExists(queriesFile, queriesBoilerplate(structName, moduleName))
+	if err := writeFileIfNotExists(modelFile, modelBoilerplate(structName)); err != nil {
+		return err
+	}
+	if err := writeFileIfNotExists(routeFile, routeBoilerplate(structName, pluralStruct, tableName, moduleName)); err != nil {
+		return err
+	}
+	if err := writeFileIfNotExists(queriesFile, queriesBoilerplate(structName, pluralStruct, tableName, moduleName)); err != nil {
+		return err
+	}
 
-	fmt.Printf("Scaffold created:\n  %s\n  %s\n  %s\n  %s\n, %s\n",
+	fmt.Printf("Scaffold created:\n  %s\n  %s\n  %s\n  %s\n  %s\n",
 		upFile, downFile, modelFile, routeFile, queriesFile)
-return nil
-
+	return nil
 }
 
-func getModuleName(path string) string {
+func getModuleName(path string) (string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		log.Fatalf("Failed to read %s: %v", path, err)
+		return "", fmt.Errorf("failed to read %s: %w", path, err)
 	}
 
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
+	for _, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "module ") {
-			return strings.TrimSpace(strings.TrimPrefix(line, "module"))
+			return strings.TrimSpace(strings.TrimPrefix(line, "module")), nil
 		}
 	}
-	log.Fatal("No module declaration found in go.mod")
-	return ""
+	return "", fmt.Errorf("no module declaration found in %s", path)
 }
 
 func toLowerCamelCase(s string) string {
@@ -97,50 +120,35 @@ func toPascalCase(s string) string {
 	return strings.Join(parts, "")
 }
 
+// toSnakeCase turns BlogPost / HTTPServer / blog_post into blog_post / http_server / blog_post.
 func toSnakeCase(s string) string {
+	runes := []rune(s)
 	var result []rune
-	for i, r := range s {
-		if i > 0 && r >= 'A' && r <= 'Z' {
-			result = append(result, '_')
+	for i, r := range runes {
+		if i > 0 && unicode.IsUpper(r) && runes[i-1] != '_' {
+			prevLower := unicode.IsLower(runes[i-1]) || unicode.IsDigit(runes[i-1])
+			nextLower := i+1 < len(runes) && unicode.IsLower(runes[i+1])
+			if prevLower || nextLower {
+				result = append(result, '_')
+			}
 		}
-		result = append(result, rune(strings.ToLower(string(r))[0]))
+		result = append(result, unicode.ToLower(r))
 	}
 	return string(result)
 }
 
-func writeFile(path string, content string) {
+func writeFile(path string, content string) error {
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		log.Fatalf("Failed to write %s: %v", path, err)
+		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
+	return nil
 }
 
-func writeFileIfNotExists(path string, content string) {
+func writeFileIfNotExists(path string, content string) error {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		writeFile(path, content)
+		return writeFile(path, content)
 	}
-}
-
-func plural(name string) string {
-	if strings.HasSuffix(name, "y") && !strings.HasSuffix(name, "ay") && !strings.HasSuffix(name, "ey") {
-		return strings.TrimSuffix(name, "y") + "ies"
-	}
-	if strings.HasSuffix(name, "s") {
-		return name + "es"
-	}
-	return name + "s"
-}
-
-func singular(name string) string {
-	if strings.HasSuffix(name, "ies") {
-		return strings.TrimSuffix(name, "ies") + "y"
-	}
-	if strings.HasSuffix(name, "es") {
-		return strings.TrimSuffix(name, "es")
-	}
-	if strings.HasSuffix(name, "s") {
-		return strings.TrimSuffix(name, "s")
-	}
-	return name
+	return nil
 }
 
 func modelBoilerplate(structName string) string {
@@ -150,6 +158,7 @@ import "time"
 
 type %s struct {
 	ID        int       `+"`json:\"id\"`"+`
+	Name      string    `+"`json:\"name\"`"+`
 	// populate the rest of the model here
 	// Example  string    `+"`json:\"example\"`"+`
 
@@ -159,9 +168,8 @@ type %s struct {
 `, structName)
 }
 
-func queriesBoilerplate(structName, moduleName string) string {
-	funcName := "Get" + structName + "s"
-	tableName := toSnakeCase(structName) + "s"
+func queriesBoilerplate(structName, pluralStruct, tableName, moduleName string) string {
+	funcName := "Get" + pluralStruct
 
 	return fmt.Sprintf(`package database
 
@@ -178,11 +186,9 @@ func %[1]s() ([]models.%[4]s, error) {
 `, funcName, tableName, moduleName, structName)
 }
 
-func routeBoilerplate(structName, moduleName string) string {
-	jsonTag := toSnakeCase(structName) + "s"
-	funcName := "Get" + structName + "s"
+func routeBoilerplate(structName, pluralStruct, tableName, moduleName string) string {
+	funcName := "Get" + pluralStruct
 	responseStruct := structName + "Response"
-	responseField := structName + "s"
 
 	return fmt.Sprintf(`package routes
 
@@ -214,5 +220,5 @@ func %[3]s(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, %[2]s{%[5]s: items})
 }
-`, structName, responseStruct, funcName, moduleName, responseField, jsonTag)
+`, structName, responseStruct, funcName, moduleName, pluralStruct, tableName)
 }
